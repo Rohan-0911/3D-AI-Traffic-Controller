@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R-N-L-N Traffic Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:#F5F8FC;
+    --surface:#FFFFFF;
+    --surface2:#EEF4FF;
+    --border:#DCE6F3;
+    --border2:#C8D7EB;
+    --text:#1F2937;
+    --muted:#64748B;
+    --accent:#3B82F6;
+    --accent2:#2563EB;
+    --emergency:#F97316;
+    --danger:#DC2626;
+    --success:#16A34A;
+    --warn:#F59E0B;
+    --radius:10px;
+    --radius-lg:16px;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg,#F8FBFF,#EEF5FF);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* NAV */
+  nav {
+    background: #FFFFFF;
+    border-bottom:1px solid #E2E8F0;
+    box-shadow:0 2px 12px rgba(0,0,0,.05);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-brand {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+  .nav-brand span { color: var(--muted); font-weight: 400; }
+  .nav-tabs { display: flex; gap: 4px; }
+  .nav-tab {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .nav-tab:hover { background: #F8FAFC; color: var(--text); }
+  .nav-tab.active { background:#3B82F6; color:#FFFFFF; font-weight: 500; }
+  .status-dot {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+  .dot.offline { background: var(--danger); animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* PAGES */
+  .page { display: none; padding: 2rem; max-width: 1200px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* INDEX PAGE */
+  .page-header { margin-bottom: 2rem; }
+  .page-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .page-subtitle { color: var(--muted); font-size: 14px; }
+
+  .ai-accuracy-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+  .ai-accuracy-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .ai-accuracy-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 52px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .ai-meta { flex: 1; }
+  .ai-desc { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .ai-badge {
+    background:#DBEAFE;
+    border:1px solid #BFDBFE;
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    display: inline-block;
+    margin-top: 8px;
+  }
+  .ai-badge.offline { background: #FEE2E2; border-color: #FECACA; color: #DC2626; }
+  .ai-chart-area { width: 200px; height: 80px; position: relative; }
+
+  /* STATS GRID */
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .stat-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.5rem;
+  }
+  .stat-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+  .stat-icon.blue { background: rgba(59,130,246,0.15); }
+  .stat-icon.green { background: rgba(34,197,94,0.15); }
+  .stat-icon.orange { background: rgba(249,115,22,0.15); }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .stat-value.blue { color: var(--accent2); }
+  .stat-value.green { color: var(--success); }
+  .stat-value.orange { color: var(--emergency); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  /* TRAFFIC LIGHT VISUAL */
+  .traffic-box {
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .intersection-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .lane-card {
+    background: #F8FAFC;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    text-align: center;
+  }
+  .lane-name {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .traffic-light {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .light-housing {
+    background:#374151;
+    border-radius: 20px;
+    padding: 6px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid #333;
+  }
+  .bulb {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #2a2a2a;
+    transition: all 0.3s;
+  }
+  .bulb.red.on { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+  .bulb.yellow.on { background: #eab308; box-shadow: 0 0 8px #eab308; }
+  .bulb.green.on { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+  .lane-wait {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .lane-wait-label { font-size: 10px; color: var(--muted); }
+  .emergency-badge {
+    background: rgba(249,115,22,0.15);
+    border: 1px solid rgba(249,115,22,0.4);
+    color: var(--emergency);
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 6px;
+    display: none;
+  }
+  .emergency-badge.show { display: block; }
+  .emergency-badge.amb { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+  .emergency-badge.fire { background: #ffedd5; border-color: #fdba74; color: #ea580c; }
+  .emergency-badge.pol { background: #dbeafe; border-color: #93c5fd; color: #2563eb; }
+
+  /* LIFETIME STATS */
+  .lifetime-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .lifetime-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.5rem;
+  }
+  .lc-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .lc-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* VIEW DETAILED BUTTON */
+  .view-detail-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--accent);
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 2rem;
+  }
+  .view-detail-btn{background:#3B82F6;color:#fff;border:none;box-shadow:0 8px 20px rgba(59,130,246,.25);} .view-detail-btn:hover{background:#2563EB;}
+  .view-detail-btn svg { width: 16px; height: 16px; }
+
+  /* DETAILED STATS PAGE */
+  .detailed-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+  .back-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 7px 12px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .back-btn:hover { border-color: var(--border2); color: var(--text); }
+
+  .detailed-section { margin-bottom: 2.5rem; }
+  .detailed-section-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    padding-bottom: 8px;
+    border-bottom:1px solid #E2E8F0;
+    box-shadow:0 2px 12px rgba(0,0,0,.05);
+  }
+
+  .detailed-lane-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  .detail-lane-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+  }
+  .dlc-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom:1px solid #E2E8F0;
+    box-shadow:0 2px 12px rgba(0,0,0,.05);
+  }
+  .dlc-name {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+  }
+  .dlc-signal {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--success);
+  }
+  .dlc-signal.red { background: var(--danger); }
+  .dlc-signal.offline { background: var(--muted); }
+
+  .dlc-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .dlc-row-label { font-size: 11px; color: var(--muted); }
+  .dlc-row-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .dlc-row-value.emerg { color: var(--emergency); }
+  .dlc-bar {
+    height: 3px; background: var(--border2); border-radius: 2px; overflow: hidden; margin-bottom: 12px;
+  }
+  .dlc-bar-fill { height: 100%; background: var(--accent2); border-radius: 2px; transition: width 0.5s; }
+
+  /* TOTAL SECTION */
+  .total-lane-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  .total-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+  }
+  .tc-dir {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .tc-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+  .tc-sublabel { font-size: 10px; color: var(--muted); margin-bottom: 10px; }
+  .tc-emerg-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--emergency);
+  }
+  .tc-emerg-label { font-size: 10px; color: var(--muted); }
+
+  /* REFRESH BAR */
+  .refresh-bar {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #FFFFFF;
+    border: 1px solid var(--border2);
+    border-radius: 30px;
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    z-index: 50;
+  }
+  .refresh-btn {
+    background:#3B82F6;
+    border: none;
+    color:#FFFFFF;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* Chart canvas */
+  .mini-chart { width: 100%; height: 60px; }
+
+  @media (max-width: 768px) {
+    .stats-grid, .lifetime-grid, .detailed-lane-grid, .total-lane-grid, .intersection-grid { grid-template-columns: repeat(2, 1fr); }
+    .ai-accuracy-card { flex-direction: column; gap: 1rem; }
+    .ai-chart-area { width: 100%; }
+    .page { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">R-N-L-N<span> // Traffic Simulator</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('index')">Dashboard</button>
+    <button class="nav-tab" onclick="showPage('detailed')">Detailed Stats</button>
+  </div>
+  <div class="status-dot"><div class="dot" id="nav-dot"></div><span id="conn-status">Connecting...</span></div>
+</nav>
+
+<div class="page active" id="page-index">
+  <div class="page-header">
+    <div class="page-title">Traffic Control Dashboard</div>
+    <div class="page-subtitle">ML-driven adaptive traffic signal system — real-time data from Unity simulation</div>
+  </div>
+
+  <div class="ai-accuracy-card">
+    <div>
+      <div class="ai-accuracy-label">AI Model Accuracy</div>
+      <div class="ai-accuracy-value" id="accuracy-val">—</div>
+      <div class="ai-desc">Adaptive signal timing model based on lane density</div>
+      <div class="ai-badge" id="model-status">Waiting for data...</div>
+    </div>
+    <div class="ai-chart-area">
+      <canvas id="accuracyChart" class="mini-chart" role="img" aria-label="AI accuracy trend">Accuracy trend chart</canvas>
+    </div>
+  </div>
+
+  <div class="section-title">Current Traffic Stats</div>
+  <div class="stats-grid" style="margin-bottom: 1.5rem;">
+    <div class="stat-card">
+      <div class="stat-icon blue">🚗</div>
+      <div class="stat-label">Waiting Cars</div>
+      <div class="stat-value blue" id="waiting-cars">—</div>
+      <div class="stat-sub">Across all lanes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">✅</div>
+      <div class="stat-label">Cars Crossed</div>
+      <div class="stat-value green" id="cars-crossed">—</div>
+      <div class="stat-sub">This session</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">🚨</div>
+      <div class="stat-label">Emergency Vehicles</div>
+      <div class="stat-value orange" id="emergency-vehicles">—</div>
+      <div class="stat-sub">Active right now</div>
+    </div>
+  </div>
+
+  <button class="view-detail-btn" onclick="showPage('detailed')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    View Detailed Stats →
+  </button>
+
+  <div class="traffic-box">
+    <div class="section-title">Live Signal Status</div>
+    <div class="intersection-grid" id="intersection-grid">
+      </div>
+  </div>
+
+  <div class="section-title">Total / Lifetime Stats</div>
+  <div class="lifetime-grid">
+    <div class="lifetime-card">
+      <div class="lc-label">Total Cars Passed</div>
+      <div class="lc-value" id="lt-cars">—</div>
+    </div>
+    <div class="lifetime-card">
+      <div class="lc-label">Total Emergency Passed</div>
+      <div class="lc-value" id="lt-emerg" style="color: var(--emergency);">—</div>
+    </div>
+    <div class="lifetime-card">
+      <div class="lc-label">Total Green Signals</div>
+      <div class="lc-value" id="lt-signals" style="color: var(--success);">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-detailed">
+  <div class="detailed-header">
+    <button class="back-btn" onclick="showPage('index')">← Back</button>
+    <div>
+      <div class="page-title" style="font-size: 22px;">Detailed Stats</div>
+      <div class="page-subtitle">Per-lane breakdown across all directions</div>
+    </div>
+  </div>
+
+  <div class="detailed-section">
+    <div class="detailed-section-title">// CURRENT — Cars Waiting (Bridge)</div>
+    <div class="detailed-lane-grid" id="detail-waiting-grid"></div>
+  </div>
+
+  <div class="detailed-section">
+    <div class="detailed-section-title">// CURRENT — Cars Passed</div>
+    <div class="detailed-lane-grid" id="detail-passed-grid"></div>
+  </div>
+
+  <div class="detailed-section">
+    <div class="detailed-section-title">// TOTAL — All Time Per Lane</div>
+    <div class="total-lane-grid" id="detail-total-grid"></div>
+  </div>
+</div>
+
+<div class="refresh-bar">
+  <span id="last-updated">Never fetched</span>
+  <button class="refresh-btn" onclick="fetchData()">Refresh</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// Make sure this is your actual Wi-Fi IP address!
+const API_URL = 'http://127.0.0.1:5000/dashboard_data'; 
+
+const DIR_SHORT = ['East', 'West', 'North', 'South'];
+const DIR_KEYS = ['east', 'west', 'north', 'south'];
+
+let accuracyHistory = [];
+let accChart = null;
+let lastData = null;
+let lifetimeCars = 0, lifetimeEmerg = 0, lifetimeSignals = 0;
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const tabs = document.querySelectorAll('.nav-tab');
+  if (id === 'index') tabs[0].classList.add('active');
+  else tabs[1].classList.add('active');
+  if (id === 'detailed' && lastData) renderDetailedPage(lastData);
+}
+
+function buildIntersectionGrid(data) {
+  const grid = document.getElementById('intersection-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  DIR_SHORT.forEach((dir, i) => {
+    const key = DIR_KEYS[i];
+    
+    const isOffline = !data; 
+    const isGreen = data && data.active_lane === key;
+    const waiting = data && data.waiting ? (data.waiting[key] || 0) : '—';
+    
+    // NEW: Pull the specific vehicle counts
+    const emDetails = data && data.emergency_details ? data.emergency_details[key] : {amb: 0, fire: 0, pol: 0};
+    let badgeHTML = '';
+    
+    // Dynamically build the badges only if the vehicle is actually there!
+    if (emDetails.amb > 0) badgeHTML += `<div class="emergency-badge show amb">🚑 Ambulance (${emDetails.amb})</div>`;
+    if (emDetails.fire > 0) badgeHTML += `<div class="emergency-badge show fire">🚒 Firetruck (${emDetails.fire})</div>`;
+    if (emDetails.pol > 0) badgeHTML += `<div class="emergency-badge show pol">🚓 Police (${emDetails.pol})</div>`;
+    
+    grid.innerHTML += `
+      <div class="lane-card">
+        <div class="lane-name">${dir}</div>
+        <div class="traffic-light">
+          <div class="light-housing">
+            <div class="bulb red ${(!isGreen && !isOffline) ? 'on' : ''}"></div>
+            <div class="bulb yellow"></div>
+            <div class="bulb green ${isGreen ? 'on' : ''}"></div>
+          </div>
+        </div>
+        <div class="lane-wait">${waiting}</div>
+        <div class="lane-wait-label">cars waiting</div>
+        ${badgeHTML}
+      </div>`;
+  });
+}
+
+function renderDetailedPage(data) {
+  const isOffline = !data;
+  const waiting = data ? (data.waiting || {}) : {};
+  const passed = data ? (data.passed || {}) : {};
+  const emerg = data ? (data.emergency || {}) : {};
+  const total = data ? (data.total || {}) : {};
+
+  // Waiting grid
+  const wg = document.getElementById('detail-waiting-grid');
+  if (wg) {
+    wg.innerHTML = '';
+    DIR_SHORT.forEach((dir, i) => {
+      const key = DIR_KEYS[i];
+      const w = isOffline ? '—' : (waiting[key] || 0);
+      const e = isOffline ? '—' : (emerg[key] || 0);
+      const max = Math.max(...Object.values(waiting).map(v => Number(v) || 1), 1);
+      const isGreen = data && data.active_lane === key;
+      wg.innerHTML += `
+        <div class="detail-lane-card">
+          <div class="dlc-header">
+            <div class="dlc-name">${dir}</div>
+            <div class="dlc-signal ${isOffline ? 'offline' : (isGreen ? '' : 'red')}"></div>
+          </div>
+          <div class="dlc-bar"><div class="dlc-bar-fill" style="width:${isOffline ? 0 : Math.round(w/max*100)}%"></div></div>
+          <div class="dlc-row"><span class="dlc-row-label">Waiting</span><span class="dlc-row-value">${w}</span></div>
+          <div class="dlc-row"><span class="dlc-row-label">Emergency</span><span class="dlc-row-value emerg">${e}</span></div>
+        </div>`;
+    });
+  }
+
+  // Passed grid
+  const pg = document.getElementById('detail-passed-grid');
+  if (pg) {
+    pg.innerHTML = '';
+    DIR_SHORT.forEach((dir, i) => {
+      const key = DIR_KEYS[i];
+      const p = isOffline ? '—' : (passed[key] || 0);
+      const e = isOffline ? '—' : (emerg[key] || 0);
+      const max = Math.max(...Object.values(passed).map(v => Number(v) || 1), 1);
+      pg.innerHTML += `
+        <div class="detail-lane-card">
+          <div class="dlc-header">
+            <div class="dlc-name">${dir}</div>
+            <div class="dlc-signal ${isOffline ? 'offline' : ''}"></div>
+          </div>
+          <div class="dlc-bar"><div class="dlc-bar-fill" style="width:${isOffline ? 0 : Math.round(p/max*100)}%; background: var(--success);"></div></div>
+          <div class="dlc-row"><span class="dlc-row-label">Passed</span><span class="dlc-row-value" style="color:var(--success)">${p}</span></div>
+          <div class="dlc-row"><span class="dlc-row-label">Emergency</span><span class="dlc-row-value emerg">${e}</span></div>
+        </div>`;
+    });
+  }
+
+  // Total grid
+  const tg = document.getElementById('detail-total-grid');
+  if (tg) {
+    tg.innerHTML = '';
+    DIR_SHORT.forEach((dir, i) => {
+      const key = DIR_KEYS[i];
+      const tc = (data && total[key]) ? (total[key].cars || 0) : '—';
+      const te = (data && total[key]) ? (total[key].emergency || 0) : '—';
+      tg.innerHTML += `
+        <div class="total-card">
+          <div class="tc-dir">${dir}</div>
+          <div class="tc-val">${tc}</div>
+          <div class="tc-sublabel">total cars</div>
+          <div class="tc-emerg-val">${te}</div>
+          <div class="tc-emerg-label">emergency vehicles</div>
+        </div>`;
+    });
+  }
+}
+
+function initAccChart() {
+  const ctx = document.getElementById('accuracyChart');
+  if (!ctx || accChart) return;
+  accChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        borderColor: '#3B82F6',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.4,
+        fill: true,
+        backgroundColor: 'rgba(59,130,246,0.15)'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: { display: false, min: 0, max: 100 }
+      }
+    }
+  });
+}
+
+async function fetchData() {
+  try {
+    const res = await fetch(API_URL, { method: 'GET' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    lastData = data;
+    updateDashboard(data);
+    
+    // UI Update for Live Status
+    document.getElementById('conn-status').textContent = 'Live';
+    document.getElementById('nav-dot').classList.remove('offline');
+    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    
+    const badge = document.getElementById('model-status');
+    badge.classList.remove('offline');
+    
+  } catch(err) {
+    clearDashboard();
+  }
+}
+
+function updateDashboard(data) {
+  const acc = data.accuracy !== undefined ? Math.round(data.accuracy * 100) / 100 : null;
+  if (acc !== null) {
+    document.getElementById('accuracy-val').textContent = acc + '%';
+    document.getElementById('model-status').textContent = acc >= 90 ? 'High Confidence' : acc >= 75 ? 'Good' : 'Training...';
+    accuracyHistory.push(acc);
+    if (accuracyHistory.length > 20) accuracyHistory.shift();
+    if (!accChart) initAccChart();
+    if (accChart) {
+      accChart.data.labels = accuracyHistory.map((_,i) => i);
+      accChart.data.datasets[0].data = accuracyHistory;
+      accChart.update('none');
+    }
+  }
+
+  const waiting = data.waiting || {};
+  const passed = data.passed || {};
+  const emerg = data.emergency || {};
+  
+  const totalWaiting = Object.values(waiting).reduce((s,v) => s + (Number(v)||0), 0);
+  const totalPassed = Object.values(passed).reduce((s,v) => s + (Number(v)||0), 0);
+  const totalEmerg = Object.values(emerg).reduce((s,v) => s + (Number(v)||0), 0);
+
+  document.getElementById('waiting-cars').textContent = totalWaiting;
+  document.getElementById('cars-crossed').textContent = totalPassed;
+  document.getElementById('emergency-vehicles').textContent = totalEmerg;
+
+  document.getElementById('lt-cars').textContent = data.lifetime_cars !== undefined ? data.lifetime_cars : '—';
+  document.getElementById('lt-emerg').textContent = data.lifetime_emergency !== undefined ? data.lifetime_emergency : '—';
+  document.getElementById('lt-signals').textContent = data.lifetime_signals !== undefined ? data.lifetime_signals : '—';
+
+  buildIntersectionGrid(data);
+  if (document.getElementById('page-detailed').classList.contains('active')) {
+    renderDetailedPage(data);
+  }
+}
+
+// NEW: Function to wipe the dashboard cleanly when server drops
+function clearDashboard() {
+  document.getElementById('conn-status').textContent = 'Server Offline';
+  document.getElementById('nav-dot').classList.add('offline');
+  document.getElementById('last-updated').textContent = 'Waiting for connection...';
+
+  document.getElementById('accuracy-val').textContent = '—';
+  
+  const badge = document.getElementById('model-status');
+  badge.textContent = 'Disconnected';
+  badge.classList.add('offline');
+
+  document.getElementById('waiting-cars').textContent = '—';
+  document.getElementById('cars-crossed').textContent = '—';
+  document.getElementById('emergency-vehicles').textContent = '—';
+  document.getElementById('lt-cars').textContent = '—';
+  document.getElementById('lt-emerg').textContent = '—';
+  document.getElementById('lt-signals').textContent = '—';
+
+  buildIntersectionGrid(null);
+  
+  if (document.getElementById('page-detailed').classList.contains('active')) {
+    renderDetailedPage(null);
+  }
+}
+
+initAccChart();
+fetchData();
+setInterval(fetchData, 3000);
+</script>
+</body>
+</html>
