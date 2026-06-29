@@ -47,3 +47,37 @@ git lfs install
 git clone [https://github.com/Rohan-0911/3D-AI-Traffic-Controller.git](https://github.com/Rohan-0911/3D-AI-Traffic-Controller.git)
 cd 3D-AI-Traffic-Controller
 git lfs pull
+```
+
+2. Start the AI Server
+Navigate to the backend directory, install dependencies, and run the Flask server:
+
+Bash
+cd AI-Backend
+pip install torch torchvision flask numpy
+python traffic_ai.py
+The server will start listening on localhost:5000.
+
+3. Run the Simulation
+Open Unity Hub and add the Unity-Simulation/Traffic Light folder as a project.
+
+Open the main scene.
+
+Press Play in the Unity Editor. The simulation will automatically connect to the local Python server and begin routing traffic!
+
+4. Open the Dashboard
+Simply double-click Web-Dashboard/website_traffic_simulator_light_theme.html in your file explorer to open the live tracking interface in your browser.
+
+👥 The Team
+This system was built collaboratively by Team Prime. Massive thanks to the core engineers who made this possible:
+
+Rohan * Raghav
+
+Rahul
+
+Pruthviraj
+
+Pulin
+
+📄 License
+This project is open-source and available under the MIT License.
